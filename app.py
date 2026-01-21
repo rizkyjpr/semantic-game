@@ -6,172 +6,46 @@ from scipy.spatial.distance import cosine
 import random
 import requests
 
-# Page Configuration
+from logic import submit_guess, get_score, get_ai_hint, reset_game, COMMON_NOUNS
+
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Semantic Mystery Game", page_icon="🔮")
 
-# Noun Lists
-COMMON_NOUNS = [
-    "Airplane",
-    "Apple",
-    "Backpack",
-    "Bicycle",
-    "Camera",
-    "Coffee",
-    "Computer",
-    "Diamond",
-    "Dolphin",
-    "Elephant",
-    "Forest",
-    "Guitar",
-    "Hammer",
-    "Hospital",
-    "Island",
-    "Jungle",
-    "Kitchen",
-    "Laptop",
-    "Library",
-    "Mountain",
-    "Notebook",
-    "Ocean",
-    "Orange",
-    "Piano",
-    "Pizza",
-    "Planet",
-    "Rainbow",
-    "Restaurant",
-    "River",
-    "Rocket",
-    "School",
-    "Submarine",
-    "Telephone",
-    "Telescope",
-    "Umbrella",
-    "Volcano",
-    "Waterfall",
-    "Window",
-    "Zebra",
-]
 
-if "hint_history" not in st.session_state:
-    st.session_state.hint_history = []
-
-hint_count = len(st.session_state.hint_history)
-
-max_hints = 3
-
-
-# Load Model
+# --- MODEL LOADING ---
 @st.cache_resource
-def load_model():
+def load_embedding_model():
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
-model = load_model()
+def load_oracle_model(api_token):
+    llm_endpoint = HuggingFaceEndpoint(
+        repo_id="Qwen/Qwen2.5-7B-Instruct",
+        task="conversational",
+        huggingfacehub_api_token=api_token,
+    )
+    return ChatHuggingFace(llm=llm_endpoint)
 
-api_token = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 
-endpoint_llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen2.5-7B-Instruct",
-    task="conversational",
-    temperature=0.7,
-    huggingfacehub_api_token=api_token,
-)
+model_embed = load_embedding_model()
 
-llm = ChatHuggingFace(llm=endpoint_llm)
+api_token = st.secrets["api_token"]
+oracle_llm = load_oracle_model(api_token)
 
-# Inizialization session state
+
+# --- INITIALIZATION SESSION STATE ---
 if "target_word" not in st.session_state:
     st.session_state.target_word = random.choice(COMMON_NOUNS).lower()
     st.session_state.history = []
-    st.session_state.win = False
-    st.session_state.gave_up = False
-
-
-# Game Logic
-
-
-def submit_guess():
-    guess = st.session_state.current_guess.lower().strip()
-    if guess and not st.session_state.win:
-        # Words to vector
-        v_target = model.embed_query(st.session_state.target_word)
-        v_guess = model.embed_query(guess)
-
-        # Calculating score
-        score = 1 - cosine(v_target, v_guess)
-
-        # Add to history
-        if not any(h["word"] == guess for h in st.session_state.history):
-            st.session_state.history.append({"word": guess, "score": score})
-
-        # Sorting history
-        st.session_state.history = sorted(
-            st.session_state.history, key=lambda x: x["score"], reverse=True
-        )
-
-        # Winning condition
-        if score > 0.80 or guess == st.session_state.target_word:
-            st.session_state.win = True
-            st.session_state.gave_up = False
-
-    # Reset input column
-    st.session_state.current_guess = ""
-
-
-def get_ai_hint(target_word):
-    API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
-    # Pastikan nama secret-nya benar (pakai huruf besar semua)
-    api_token = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
-    headers = {"Authorization": f"Bearer {api_token}"}
-
-    prompt = f"Give a one-sentence cryptic tsundere riddle for the word: '{target_word}'. Don't mention the word."
-    payload = {
-        "inputs": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
-        "parameters": {"temperature": 0.8, "max_new_tokens": 100},
-        "options": {"wait_for_model": True},
-    }
-
-    try:
-        # Tambahkan headers Content-Type agar lebih formal
-        headers["Content-Type"] = "application/json"
-
-        response = requests.post(
-            API_URL,
-            headers=headers,
-            json=payload,
-            timeout=25,  # Naikin timeout-nya biar nggak Error 0 pas lagi nunggu model
-        )
-
-        # Cek status code sebelum ambil JSON
-        response.raise_for_status()
-
-        output = response.json()
-        return output[0]["generated_text"].split("assistant\n")[-1].strip()
-
-    except requests.exceptions.HTTPError as errh:
-        return f"Error HTTP: {errh.response.status_code}"
-    except requests.exceptions.ConnectionError:
-        return "Error: Connection Refused (Check your internet or API URL)"
-    except requests.exceptions.Timeout:
-        return "Error: Request Timed Out (Oracle is too slow)"
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-
-def reset_game():
-    st.session_state.target_word = random.choice(COMMON_NOUNS).lower()
-
-    st.session_state.history = []
-
     st.session_state.hint_history = []
-
     st.session_state.win = False
     st.session_state.gave_up = False
 
-    st.rerun()
+# --- DYNAMIC VARIABLES (Calculated on every rerun) ---
+hint_count = len(st.session_state.hint_history)
+MAX_HINTS = 3
 
-
-# User Interface
+# --- USER INTERFACE ---
 st.title("🔮 Semantic Mystery")
 
 with st.expander("📖 How to Play & Game Rules"):
@@ -194,7 +68,7 @@ with st.expander("📖 How to Play & Game Rules"):
 st.write("---")
 
 
-# Sidebar
+# SIDEBAR
 with st.sidebar:
     st.header("Menu")
     if st.button("🔄 Change new word"):
@@ -205,7 +79,7 @@ with st.sidebar:
     if st.checkbox("Cheat Mode (Show answer)"):
         st.info(f"The answer is: {st.session_state.target_word}")
 
-# Show progress bar and history
+# SHOW PROGRESS & HISTORY
 if st.session_state.history:
     best_score = st.session_state.history[0]["score"]
     st.metric("Highest Score", f"{best_score:.2%}")
@@ -226,28 +100,37 @@ if st.session_state.history:
 
     st.write("---")
 
-# Input User
-st.text_input(
-    "Input your guess:",
-    key="current_guess",
-    on_change=submit_guess,
-    disabled=st.session_state.win,
-)
+# INPUT USER
+col_input, col_btn = st.columns([4, 1])
 
-# Give up button
+with col_input:
+    st.text_input(
+        "Input your guess:",
+        key="current_guess",
+        on_change=lambda: submit_guess(model_embed),
+        disabled=st.session_state.win,
+        label_visibility="collapsed",
+    )
+
+with col_btn:
+    if st.button("Submit", use_container_width=True, disabled=st.session_state.win):
+        submit_guess(model_embed)
+
+
+# GIVEUP BUTTON
 if not st.session_state.win:
     if st.button("🏳️ Give Up"):
         st.session_state.win = True
         st.session_state.gave_up = True
         st.rerun()
 
-# Oracle Button
-if st.button("🔮 Seek Oracle Guidance", disabled=(hint_count >= max_hints)):
+# ORACLE BUTTON
+if st.button("🔮 Seek Oracle Guidance", disabled=(hint_count >= MAX_HINTS)):
     found_hint = False
     last_error = "Unknown Error"
     for i in range(3):
         with st.spinner(f"Whispering to the void... (Trial {i+1}/3)"):
-            hint = get_ai_hint(st.session_state.target_word)
+            hint = get_ai_hint(oracle_llm, st.session_state.target_word)
             if "Error" not in hint:
                 # append to history
                 st.session_state.hint_history.append(hint)
@@ -260,8 +143,8 @@ if st.button("🔮 Seek Oracle Guidance", disabled=(hint_count >= max_hints)):
     if not found_hint:
         st.error(f"The Oracle is silent. Reason: {last_error}")
 
-if hint_count < max_hints:
-    st.caption(f"You have {max_hints - hint_count} guidance tokens left.")
+if hint_count < MAX_HINTS:
+    st.caption(f"You have {MAX_HINTS - hint_count} guidance tokens left.")
 else:
     st.caption("🚫 *The Oracle is no longer listening.*")
 
@@ -269,15 +152,15 @@ if st.session_state.hint_history:
     st.markdown("---")
     st.markdown("### 📜 The Oracle's Ledger")
 
-    # Showing all hint
-    with st.expander(f"📜 Oracle's Whispers ({hint_count}/{max_hints})"):
+    # SHOWING ALL HINT
+    with st.expander(f"📜 Oracle's Whispers ({hint_count}/{MAX_HINTS})"):
         for h in reversed(st.session_state.hint_history):
             with st.chat_message("assistant", avatar="🔮"):
                 st.markdown(
                     f'<div class="oracle-box-style">"{h}"</div>', unsafe_allow_html=True
                 )
 
-# Endgame
+# ENDGAME
 if st.session_state.win:
     if st.session_state.gave_up:
         st.warning(
