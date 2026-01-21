@@ -5,6 +5,7 @@ from langchain_huggingface import HuggingFaceEndpoint
 from scipy.spatial.distance import cosine
 import random
 import requests
+import textwrap
 
 from logic import submit_guess, get_score, get_ai_hint, reset_game, COMMON_NOUNS
 
@@ -49,7 +50,7 @@ MAX_HINTS = 3
 st.title("🔮 Semantic Mystery")
 
 with st.expander("📖 How to Play & Game Rules"):
-    st.markdown(
+    help_text = textwrap.dedent(
         """
     ### *Can you bridge the gap between thought and essence?*
 
@@ -64,6 +65,8 @@ with st.expander("📖 How to Play & Game Rules"):
     3. **Consult the Oracle**: Stuck? Ask the Oracle for a cryptic hint. Just be warned—she doesn't like being disturbed, and her tongue is as sharp as her mind.
     """
     )
+
+    st.markdown(help_text)
 
 st.write("---")
 
