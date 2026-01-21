@@ -233,6 +233,7 @@ if not st.session_state.win:
 # Oracle Button
 if st.button("🔮 Seek Oracle Guidance", disabled=(hint_count >= max_hints)):
     found_hint = False
+    last_error = "Unknown Error"
     for i in range(3):
         with st.spinner(f"Whispering to the void... (Trial {i+1}/3)"):
             hint = get_ai_hint(st.session_state.target_word)
@@ -242,9 +243,11 @@ if st.button("🔮 Seek Oracle Guidance", disabled=(hint_count >= max_hints)):
                 found_hint = True
                 st.rerun()
                 break
+            else:
+                last_error = hint
 
     if not found_hint:
-        st.error("Tch! The void is too noisy right now. Try again.")
+        st.error(f"The Oracle is silent. Reason: {last_error}")
 
 if hint_count < max_hints:
     st.caption(f"You have {max_hints - hint_count} guidance tokens left.")
