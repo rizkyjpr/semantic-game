@@ -73,7 +73,7 @@ endpoint_llm = HuggingFaceEndpoint(
     repo_id="Qwen/Qwen2.5-7B-Instruct",
     task="conversational",
     temperature=0.7,
-    huggingfacehub_api_token="api_token",
+    huggingfacehub_api_token=api_token,
 )
 
 llm = ChatHuggingFace(llm=endpoint_llm)
@@ -119,7 +119,7 @@ def submit_guess():
 
 def get_ai_hint(target_word):
     API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
-    headers = {"Authorization": f"Bearer {st.secrets['api_token']}"}
+    headers = {"Authorization": f"Bearer {st.secrets['HUGGINGFACEHUB_API_TOKEN']}"}
 
     prompt = f"Give a one-sentence cryptic tsundere riddle for the word: '{target_word}'. Don't mention the word."
 
