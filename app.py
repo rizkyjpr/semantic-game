@@ -4,7 +4,7 @@ from langchain_huggingface import ChatHuggingFace
 from langchain_huggingface import HuggingFaceEndpoint
 from scipy.spatial.distance import cosine
 import random
-import request
+import requests
 
 # Page Configuration
 st.set_page_config(page_title="Semantic Mystery Game", page_icon="🔮")
