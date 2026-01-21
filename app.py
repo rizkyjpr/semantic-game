@@ -4,6 +4,7 @@ from langchain_huggingface import ChatHuggingFace
 from langchain_huggingface import HuggingFaceEndpoint
 from scipy.spatial.distance import cosine
 import random
+import request
 
 # Page Configuration
 st.set_page_config(page_title="Semantic Mystery Game", page_icon="🔮")
@@ -137,10 +138,11 @@ def get_ai_hint(target_word):
     except Exception as e:
         # List pesan ngambek Oracle
         annoyed_remarks = [
-            "Hmph! I'm not in the mood to talk to you right now. Go away!",
-            "The void is too noisy... Don't disturb my meditation!",
-            "Tch, do you think my wisdom is free? Try again when you're less annoying.",
-            "I've said enough for today. My throat hurts from explaining things to idiots.",
+            f"Error: {e}"
+            # "Hmph! I'm not in the mood to talk to you right now. Go away!",
+            # "The void is too noisy... Don't disturb my meditation!",
+            # "Tch, do you think my wisdom is free? Try again when you're less annoying.",
+            # "I've said enough for today. My throat hurts from explaining things to idiots.",
         ]
         return random.choice(annoyed_remarks)
 
