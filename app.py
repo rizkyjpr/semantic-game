@@ -120,31 +120,42 @@ def submit_guess():
 
 def get_ai_hint(target_word):
     API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
-    headers = {"Authorization": f"Bearer {st.secrets['HUGGINGFACEHUB_API_TOKEN']}"}
+    # Pastikan nama secret-nya benar (pakai huruf besar semua)
+    api_token = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
+    headers = {"Authorization": f"Bearer {api_token}"}
 
     prompt = f"Give a one-sentence cryptic tsundere riddle for the word: '{target_word}'. Don't mention the word."
-
     payload = {
         "inputs": f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
         "parameters": {"temperature": 0.8, "max_new_tokens": 100},
+        "options": {"wait_for_model": True},
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
+        # Tambahkan headers Content-Type agar lebih formal
+        headers["Content-Type"] = "application/json"
+
+        response = requests.post(
+            API_URL,
+            headers=headers,
+            json=payload,
+            timeout=25,  # Naikin timeout-nya biar nggak Error 0 pas lagi nunggu model
+        )
+
+        # Cek status code sebelum ambil JSON
+        response.raise_for_status()
+
         output = response.json()
-        # Mengambil teks hasil generate saja
-        hint = output[0]["generated_text"].split("assistant\n")[-1].strip()
-        return hint
+        return output[0]["generated_text"].split("assistant\n")[-1].strip()
+
+    except requests.exceptions.HTTPError as errh:
+        return f"Error HTTP: {errh.response.status_code}"
+    except requests.exceptions.ConnectionError:
+        return "Error: Connection Refused (Check your internet or API URL)"
+    except requests.exceptions.Timeout:
+        return "Error: Request Timed Out (Oracle is too slow)"
     except Exception as e:
-        # List pesan ngambek Oracle
-        annoyed_remarks = [
-            f"Error: {e}"
-            # "Hmph! I'm not in the mood to talk to you right now. Go away!",
-            # "The void is too noisy... Don't disturb my meditation!",
-            # "Tch, do you think my wisdom is free? Try again when you're less annoying.",
-            # "I've said enough for today. My throat hurts from explaining things to idiots.",
-        ]
-        return random.choice(annoyed_remarks)
+        return f"Error: {str(e)}"
 
 
 def reset_game():
