@@ -1,3 +1,7 @@
 langchain_huggingface==1.2.0
 scipy==1.17.0
 streamlit==1.53.0
+streamlit
+langchain
+langchain-huggingface
+sentence-transformers
